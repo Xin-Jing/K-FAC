@@ -62,31 +62,28 @@ def soft_max(x):
     return (e_x.T / np.sum(e_x,1)).T
 
 def log_predict(outputs,layer_types):
-    # return the final prediction of the neural network given the outputs of the last layer
+    # return the log_probabilities given the preactivations of the last layer
     # so far only softmax function included, will include more types of last layer functions
     if layer_types[-1] == 'softmax':
         return outputs - logsumexp(outputs, axis=1, keepdims=True)  # a_l
 
 def objective(outputs, params, targets, layer_types):
-    # a_l is the predictions from the last layer
+    # outputs are the preactivations from the last layer
     # will modify is for different regularization and loss functions
     log_predictions = log_predict(outputs, layer_types)
     log_lik = np.sum(log_predictions * targets) # this is negative
     return - log_lik  # L2 shouldn't be added here, since it will be taken care of later
 
 def softmax_sampling(predictions):
-    # we sample the targets of the softmax layer
-    # predictions are inputs to the softmax layer
+    # sample the targets of the softmax layer from probabilities predicted by the model
     c = np.cumsum(predictions, 1)
     s = npr.rand(predictions.shape[0])
-    #comparison = np.tile(s, (predictions.shape[1], 1)).T <= c
     return np.diff(np.concatenate((np.zeros([1, predictions.shape[0]]).T,
                                    np.tile(s, (predictions.shape[1], 1)).T <= c),
                                   axis=1),axis=1)
 
 def one_forwardpass_and_two_backward_pass(minibatch_size,sampleminibatch_size,inputs_minibatch, targets_minibatch, params, numlayers, layer_sizes, layer_types, weight_cost, flattened_params, L2_reg):
-    # back_prop that keeps track of ai's and gi's and gives the gradient
-    # for now, we don't break the minibatch into chunks
+    # back_prop that keeps track of ai's and gi's and returns flattened gradient,  A_hom_inc, G_inc, last layer preactivations and  log likelihood
     a_inc = []
     a_inc.append(inputs_minibatch) # now a_inc includes the minibatch inputs
     inputs = inputs_minibatch
@@ -110,8 +107,7 @@ def one_forwardpass_and_two_backward_pass(minibatch_size,sampleminibatch_size,in
         g = predictions - targets_minibatch # Gradient of objective function w.r.t. outputs of the last layer
         # note that this derivative is for negative log-likelihood without L2 penelty being added
     else:
-        # Gradient of objective function w.r.t. outputs of the last layer
-        grad_last = grad(objective)
+        grad_last = grad(objective) # Gradient of objective function w.r.t. outputs of the last layer
         g = grad_last(outputs, params, targets_minibatch, layer_types) # shape: (layer_sizes[l] * num of examples)
     D_W_b[-1][0] =  np.dot(a_inc[-1].T, g)# DW of the last layer ; shape: (layer_sizes[l-1], 10)
     D_W_b[-1][1] = np.sum(g,0) # Db of the last layer
@@ -130,21 +126,20 @@ def one_forwardpass_and_two_backward_pass(minibatch_size,sampleminibatch_size,in
     # last layer sampling:
     predictions_sample = predictions[0:sampleminibatch_size]
     if layer_types[-1] == 'softmax':
-        # g_l = randomly-sampled target for softmax layer  -  predictions
-        g = predictions_sample - softmax_sampling(predictions_sample)
-    G_inc[numlayers,numlayers] = np.dot(g.T, g)/sampleminibatch_size  # G_inc[3,3] = (g_3 * g_3.T)/sampleminibatch_size
+        g = predictions_sample - softmax_sampling(predictions_sample) # g = randomly-sampled target for softmax layer  -  predictions
+    G_inc[numlayers,numlayers] = np.dot(g.T, g)/sampleminibatch_size  # G_inc[l,l] = (g_l * g_l.T)/sampleminibatch_size
 
     for i in range(1, numlayers):
-        ai_inc_sample = a_inc[-i][0:sampleminibatch_size]  # note that a_inc[-1] is the second last layer
+        ai_inc_sample = a_inc[-i][0:sampleminibatch_size]  # note that a_inc[-1] is activations from the second last layer
         ai_hom_inc = np.concatenate((ai_inc_sample, np.ones([ai_inc_sample.shape[0], 1])), axis=1)
         A_hom_inc[numlayers - i , numlayers - i ] = np.dot(ai_hom_inc.T, ai_hom_inc)  # A[i,i] = ai_hom_inc * ai_hom_inc.T/sampleminibatch_size
         if layer_types[-i-1] == 'tanh':
             g = np.dot(g, params[-i][0].T) * (1 + ai_inc_sample) * (1 - ai_inc_sample)
         G_inc[numlayers-i, numlayers-i] = np.dot(g.T, g)/sampleminibatch_size
 
-    ai_inc_sample = a_inc[0][0:sampleminibatch_size]  # a_2_sample
-    ai_hom_inc = np.concatenate((ai_inc_sample, np.ones([ai_inc_sample.shape[0], 1])), axis=1)  # a_2_hom_sample
-    A_hom_inc[0, 0] = np.dot(ai_hom_inc.T, ai_hom_inc) / sampleminibatch_size  # A[2,2] = (a2_hom_inc * a2_hom_inc.T)/sampleminibatch_size
+    ai_inc_sample = a_inc[0][0:sampleminibatch_size]  # a_0_sample
+    ai_hom_inc = np.concatenate((ai_inc_sample, np.ones([ai_inc_sample.shape[0], 1])), axis=1)  # a_0_hom_sample
+    A_hom_inc[0, 0] = np.dot(ai_hom_inc.T, ai_hom_inc) / sampleminibatch_size  # A[0,0] = (a0_hom_inc * a0_hom_inc.T)/sampleminibatch_size
     # Now we have G_inc(i,i), where i = 1,2 3 , and A_hom_inc(i,i), where i = 0, 1, 2
     return flattened_gradient,  A_hom_inc, G_inc, outputs, log_likelihood
 
@@ -203,11 +198,12 @@ def compute_quadmodel_hyperparameters(proposal, flattened_gradient, outputs, par
     # now compute jacobian-proposal product
     j_p = product_jacobian_proposal(proposal, params, inputs_minibatch) # last layer size * minibatch_size
 
+    # not working yet
     # half =  (q * j_p  - q.dot(p.T).dot(j_p))/minibatch_size # last layer size * minibatch_size
     # pFp = np.dot(half.T,half) # minbatch_size * minibatch_size, symmetric
     # pFp = np.sum(pFp)
 
-    #how to improve this ??
+    # using the following as a replacement, but how to improve this ??
     pFp = 0
     for i in range(minibatch_size):
         half = q[:, i] * j_p[:, i] - np.outer(q[:, i], p[:, i]).dot(j_p[:, i])
@@ -346,6 +342,7 @@ def KFAC(num_iter, init_params, layer_sizes,layer_types, train_inputs, train_tar
         flattened_params += final_update
         params = unflatten(flattened_params)
 
+        # Not working yet
         # if iter % T1 == 0:
         #     # adjust lambda according to Levenberg-Marquart style adjustment rule. Please see section 6.5
         #     denominator = -min_quad_model_change
@@ -401,11 +398,10 @@ if __name__ == '__main__':
     train_targets = train_labels
     testing_inputs = test_images
     testing_targets = test_labels
-
     train_with_increasing_batch_size = True # if False, then will train with fixed batch size of 256.
-
     print( "   Iterations  |    Minibatch size  |    Train accuracy  |    Test accuracy   |    Time elapsed during this 100 iterations   ")
     import time
+
     optimized_params = KFAC(num_iter, init_params, layer_sizes,layer_types, train_inputs, train_targets, testing_inputs, testing_targets, train_with_increasing_batch_size, L2_reg = 1)
 
 
