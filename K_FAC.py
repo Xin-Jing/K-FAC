@@ -46,10 +46,10 @@ def l2_norm(params):
     return np.dot(flattened, flattened)
 
 def log_posterior(params, inputs, targets, L2_reg):
-    log_prior = -L2_reg * l2_norm(params)
+    #log_prior = -L2_reg * l2_norm(params)
     log_lik = np.sum(neural_net_predict(params, inputs) * targets)
     log_lik = log_lik/inputs.shape[0]
-    return log_prior + log_lik
+    return log_lik #+ log_prior
 
 def next_batch_size(startsize, train_size, b, k):
     # exponentially schedule for minibatch size as described in Page 42.
@@ -95,7 +95,7 @@ def one_forwardpass_and_two_backward_pass(minibatch_size,sampleminibatch_size,in
         a_inc.append(inputs)  # now a_inc includes the a_i_hom = [a_i, 1], i < l
     outputs = np.dot(inputs, params[numlayers-1][0]) + params[numlayers-1][1]  # preactivations from the last layer
     log_probabilities = outputs - logsumexp(outputs, axis=1, keepdims=True)
-    log_likelihood = np.sum(log_probabilities * targets_minibatch)/inputs_minibatch.shape[0] - L2_reg * l2_norm(params)
+    log_likelihood = np.sum(log_probabilities * targets_minibatch)/inputs_minibatch.shape[0] #- L2_reg * l2_norm(params)
 
     # Backward Prop
     D_W_b = [[np.zeros([m, n]),  # matrix of gradient of weights
@@ -220,13 +220,13 @@ def compute_quadmodel_hyperparameters(proposal, flattened_gradient, outputs, par
     return update, quad_model_change
 
 
-def KFAC(num_iter, init_params, layer_sizes,layer_types, train_inputs, train_targets, testing_inputs, testing_targets, train_with_increasing_batch_size, L2_reg = 1):
+def KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_inputs, train_targets, testing_inputs, testing_targets, train_with_increasing_batch_size, L2_reg = 1):
 
     train_size = train_inputs.shape[0]
     numlayers = len(layer_sizes) - 1
 
     # parameters for lambda, see initSection 6.5
-    initlambda = 150  # The choice is problem dependent, this initial tuning can be automated.
+    recent_lambda = initlambda
     # initlambda = 1  a value usually more appropriate for classification nets
     lambda_drop = 19 / 20
     lambda_boost = 1 / lambda_drop
@@ -234,7 +234,6 @@ def KFAC(num_iter, init_params, layer_sizes,layer_types, train_inputs, train_tar
     lambda_max = float('Inf')
     lambda_min = 0
     # lambda_min = 1e-3
-    recent_lambda = 0
     T1 = 5 # update lambda every T1 iterations
 
     weight_cost = 1e-5  # standard L_2 weight-decay
@@ -342,27 +341,19 @@ def KFAC(num_iter, init_params, layer_sizes,layer_types, train_inputs, train_tar
         flattened_params += final_update
         params = unflatten(flattened_params)
 
-        # Not working yet
-        # if iter % T1 == 0:
-        #     # adjust lambda according to Levenberg-Marquart style adjustment rule. Please see section 6.5
-        #     denominator = -min_quad_model_change
-        #     new_log_likelihood = log_posterior(params, inputs_minibatch, targets_minibatch, L2_reg)
-        #     rho = (new_log_likelihood - log_likelihood) / denominator
-        #
-        #     if log_likelihood - new_log_likelihood > 0:
-        #         rho = float('-Inf') # this assignment is seen in the MATLAB code, but not in the paper.
-        #
-        #     print('rho')
-        #     print(rho)
-        #
-        #     if rho < 0.25:      # theses adjustment are also not mentioned in the paper
-        #         recent_lambda = min(recent_lambda * (lambda_boost**T1), lambda_max)
-        #     elif rho > 0.75:
-        #         recent_lambda = max(recent_lambda * (lambda_drop**T1), lambda_min)
-        #
-        #
-        #     print("recent_lambda")
-        #     print(recent_lambda)
+        if iter % T1 == 0:
+            # adjust lambda according to Levenberg-Marquart style adjustment rule. Please see section 6.5
+            denominator = -min_quad_model_change
+            new_log_likelihood = log_posterior(params, inputs_minibatch, targets_minibatch, L2_reg)
+            rho = (new_log_likelihood - log_likelihood) / denominator
+
+            if log_likelihood - new_log_likelihood > 0:
+                rho = float('-Inf')
+
+            if rho < 0.25:
+                recent_lambda = min(recent_lambda * (lambda_boost**T1), lambda_max)
+            elif rho > 0.75:
+                recent_lambda = max(recent_lambda * (lambda_drop**T1), lambda_min)
 
         if iter % 100 == 0: # counting time and printing statistics
             if iter == 0:
@@ -382,7 +373,7 @@ def accuracy(params, inputs, targets):
     return np.mean(predicted_class == target_class)
 
 if __name__ == '__main__':
-    print('Results from KFAC')
+
     print('-----------------------------------------')
 
     # Model parameters
@@ -399,33 +390,13 @@ if __name__ == '__main__':
     testing_inputs = test_images
     testing_targets = test_labels
     train_with_increasing_batch_size = True # if False, then will train with fixed batch size of 256.
+
+    print('Results from KFAC')
     print( "   Iterations  |    Minibatch size  |    Train accuracy  |    Test accuracy   |    Time elapsed during this 100 iterations   ")
     import time
+    # The initial lambda value.  Will be problem dependent and should be adjusted based on behavior of first few dozen iterations.
+    initlambda = 0  #  1 is more appropriate for classification nets. You may want to try initlambda = 150 for an autoencoder.
 
-    optimized_params = KFAC(num_iter, init_params, layer_sizes,layer_types, train_inputs, train_targets, testing_inputs, testing_targets, train_with_increasing_batch_size, L2_reg = 1)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    optimized_params = KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_inputs, train_targets, testing_inputs, testing_targets, train_with_increasing_batch_size, L2_reg = 1)
 
 
