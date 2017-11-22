@@ -79,6 +79,6 @@ print( "   Iterations  |    Minibatch size  |    Train accuracy  |    Test accur
 
 # The initial lambda value is the only parameter you need to adjust for now. This adjustment will be automated in the future.
 # The choice of initial lambda is problem-dependent and can be adjusted based on behavior of the first few iterations.
-initlambda = 1  #  1 is more appropriate for classification nets. For an autoencoder, you may want to try initlambda = 150
+initlambda = 1   #  1 is more appropriate for classification nets. For an autoencoder, you may want to try initlambda = 150
 
 optimized_params = KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_inputs, train_targets, testing_inputs, testing_targets, train_with_increasing_batch_size, L2_reg = 1, callback = show_results)
