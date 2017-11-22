@@ -8,6 +8,7 @@ from autograd import grad
 from autograd.differential_operators import make_jvp_reversemode
 from autograd.misc.flatten import flatten
 from data import load_mnist
+# Data need to be of shape: num_of_samples * dimension.
 
 def neural_net_predict(params, inputs):
     """A deep neural network for classification.
