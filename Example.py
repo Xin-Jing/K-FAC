@@ -62,14 +62,14 @@ def show_results(i, params,minibatch_size):
 
 # Model parameters
 layer_sizes = [784, 200, 100, 10] # the first number 784 is the dimension of a single input
-layer_types = ['tanh', 'tanh', 'softmax']
-L2_reg = 1.0
+layer_types = ['tanh', 'tanh', 'softmax']     
+L2_reg = 1.0                    
 param_scale = 0.1 # parameter for generating initial variables
 init_params = init_random_params(param_scale, layer_sizes)
 num_iter = 1000
 print("Loading training data...")
 N, train_images, train_labels, test_images, test_labels = load_mnist() # loading data
-train_inputs = train_images
+train_inputs = train_images         # all data need to be in the shape: num_of_samples * dimension.
 train_targets = train_labels
 testing_inputs = test_images
 testing_targets = test_labels
