@@ -1,7 +1,7 @@
 """Train an MLP on MNIST using K-FAC.
 This MLP fits a 3-layer, tanh-activated MLP on MNIST using K-FAC. After
-200 iterations, this should reach ~99% accuracy on training set and
-~98% accuracy on testing set.
+200 iterations, this should reach ~99% accuracy on the training set and
+~98% on the testing set.
 """
 from K_FAC import KFAC
 import autograd.numpy as np
@@ -23,7 +23,7 @@ def init_random_params(scale, layer_sizes, rs=npr.RandomState(0)):
              scale * rs.randn(n))  # bias vector
             for m, n in zip(layer_sizes[:-1], layer_sizes[1:])]
 
-# the following three functions are used for printing the results as the training goes,
+# the following three functions are used for printing the results as the training goes, not needed for the optimizer
 def neural_net_predict(params, inputs):
     """A deep neural network for classification.
        params is a list of (weights, bias) tuples.
@@ -31,7 +31,8 @@ def neural_net_predict(params, inputs):
        returns normalized class log-probabilities,
        and preactivations of the last layer.
 
-       you don't need to create it if you are not interested in seeing the printed results.
+       you don't need to create it if you are not interested 
+       in seeing the printed results.
        """
     for W, b in params:
         outputs = np.dot(inputs, W) + b
@@ -67,7 +68,7 @@ param_scale = 0.1 # parameter for generating initial variables
 init_params = init_random_params(param_scale, layer_sizes)
 num_iter = 1000
 print("Loading training data...")
-N, train_images, train_labels, test_images, test_labels = load_mnist()
+N, train_images, train_labels, test_images, test_labels = load_mnist() # loading data
 train_inputs = train_images
 train_targets = train_labels
 testing_inputs = test_images
@@ -75,7 +76,7 @@ testing_targets = test_labels
 train_with_increasing_batch_size = True # if False, then will train with fixed batch size of 256.
 
 print('Results from KFAC')
-print( "   Iterations  |    Minibatch size  |    Train accuracy  |    Test accuracy   | ")
+print( "   Iterations  |    Minibatch size  |    Train accuracy  |    Test accuracy    ")
 
 # The initial lambda value is the only parameter you need to adjust for now. This adjustment will be automated in the future.
 # The choice of initial lambda is problem-dependent and can be adjusted based on behavior of the first few iterations.
