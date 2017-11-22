@@ -10,4 +10,4 @@ This implementation is simple to use. Users don't need to construct the neural n
 
 The file "optimize_with_adam" is used as a comparison to the performance of K-FAC. It performs exactly the same classification task with an adam optimizer. It has the same backpropagation code as that of K-FAC. So it differs from K-FAC in what happens after backpropagation.
 
-I'm continuing improving the implementation.
+I'm continuing improving the implementation. If you have any suggestion, please feel free to email me at xin.jing@mail.utoronto.ca
