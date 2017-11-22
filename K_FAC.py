@@ -1,4 +1,4 @@
-"""A multi-layer perceptron for classification of MNIST handwritten digits."""
+"""Implementation of K-FAC optimizer for feedforward neural networks"""
 from __future__ import absolute_import, division
 from __future__ import print_function
 import autograd.numpy as np
@@ -8,15 +8,6 @@ from autograd import grad
 from autograd.differential_operators import make_jvp_reversemode
 from autograd.misc.flatten import flatten
 from data import load_mnist
-
-# K-FAC
-
-def init_random_params(scale, layer_sizes, rs=npr.RandomState(0)):
-    """Build a list of (weights, biases) tuples,
-       one for each layer in the net."""
-    return [(scale * rs.randn(m, n),   # weight matrix
-             scale * rs.randn(n))      # bias vector
-            for m, n in zip(layer_sizes[:-1], layer_sizes[1:])]
 
 def neural_net_predict(params, inputs):
     """A deep neural network for classification.
@@ -46,36 +37,35 @@ def l2_norm(params):
     return np.dot(flattened, flattened)
 
 def log_posterior(params, inputs, targets, L2_reg):
-    #log_prior = -L2_reg * l2_norm(params)
     log_lik = np.sum(neural_net_predict(params, inputs) * targets)
     log_lik = log_lik/inputs.shape[0]
-    return log_lik #+ log_prior
+    return log_lik 
 
 def next_batch_size(startsize, train_size, b, k):
-    # exponentially schedule for minibatch size as described in Page 42.
-    # k is the number of iterations.
+    """ exponentially schedule for minibatch size as described in Page 42.
+        k is the number of iterations."""
     return int(min(startsize*2**(k/b), train_size))
 
 def soft_max(x):
-    # shape of x : (# of samples * dimension)
+    """shape of x : (# of samples * dimension)"""
     e_x = np.exp((x.T - np.max(x, 1)).T)
     return (e_x.T / np.sum(e_x,1)).T
 
 def log_predict(outputs,layer_types):
-    # return the log_probabilities given the preactivations of the last layer
-    # so far only softmax function included, will include more types of last layer functions
+    """ return the log_probabilities given the preactivations of the last layer
+        so far only softmax function included, will include more types of last layer functions"""
     if layer_types[-1] == 'softmax':
         return outputs - logsumexp(outputs, axis=1, keepdims=True)  # a_l
 
 def objective(outputs, params, targets, layer_types):
-    # outputs are the preactivations from the last layer
-    # will modify is for different regularization and loss functions
+    """ outputs are the preactivations from the last layer
+     will modify is for different regularization and loss functions"""
     log_predictions = log_predict(outputs, layer_types)
     log_lik = np.sum(log_predictions * targets) # this is negative
     return - log_lik  # L2 shouldn't be added here, since it will be taken care of later
 
 def softmax_sampling(predictions):
-    # sample the targets of the softmax layer from probabilities predicted by the model
+    """ sample the targets of the softmax layer from probabilities predicted by the model"""
     c = np.cumsum(predictions, 1)
     s = npr.rand(predictions.shape[0])
     return np.diff(np.concatenate((np.zeros([1, predictions.shape[0]]).T,
@@ -83,7 +73,8 @@ def softmax_sampling(predictions):
                                   axis=1),axis=1)
 
 def one_forwardpass_and_two_backward_pass(minibatch_size,sampleminibatch_size,inputs_minibatch, targets_minibatch, params, numlayers, layer_sizes, layer_types, weight_cost, flattened_params, L2_reg):
-    # back_prop that keeps track of ai's and gi's and returns flattened gradient,  A_hom_inc, G_inc, last layer preactivations and  log likelihood
+    """ back_prop that keeps track of ai's and gi's and returns flattened gradient,  A_hom_inc, G_inc, last layer preactivations and  log likelihood"""
+    
     a_inc = []
     a_inc.append(inputs_minibatch) # now a_inc includes the minibatch inputs
     inputs = inputs_minibatch
@@ -144,9 +135,10 @@ def one_forwardpass_and_two_backward_pass(minibatch_size,sampleminibatch_size,in
     return flattened_gradient,  A_hom_inc, G_inc, outputs, log_likelihood
 
 def compute_invdiF_V(unflatten, inv_A_hom_damp, inv_G_damp, flattened_gradient, numlayers):
-    # compute the product of diagonal approximate inverse Fisher and the gradient
-    # unflatten is a function
-    # return the flattened product, which is called proposal, or preconditioned gradient
+    """ compute the product of diagonal approximate inverse Fisher and the gradient
+        unflatten is a function 
+        return the flattened product, which is called proposal, or preconditioned gradient
+    """
     gradient = unflatten(flattened_gradient)
     proposal = [[0,0]  for i in range(numlayers)]
     for i in range(numlayers):
@@ -158,33 +150,35 @@ def compute_invdiF_V(unflatten, inv_A_hom_damp, inv_G_damp, flattened_gradient, 
     return proposal
 
 def product_jacobian_proposal(proposal, params, inputs_minibatch):
-    # compute the product of jacobian and proposed gradients
+    """ compute the product of jacobian and proposed gradients
+    """
     j_p = make_jvp_reversemode(last_layer_preactivations)
     return j_p(params, inputs_minibatch)(proposal).T  # dim(10 * 1008)
 
 def compute_quadmodel_hyperparameters(proposal, flattened_gradient, outputs, params, inputs_minibatch, recent_lambda, weight_cost, ratio_vFv=1 ):
-    # See section 6.4 and 7 from the paper
-    # For now, we only compute alpha from section 6.4, and will implement the computation of both alpha and mu from section 7 later.
-    # To computer the hyperparameters, we first need proposal.T * F * proposal, where F is the exact Fisher given by
-    # the data from the current minibatch. To reduce computational costs, we factorize F as J.T * Fr * J, where J is
-    # the Jacobian of preactivations from the last layer w.r.t all the parameters (i.e. weights and biases), and Fr
-    # is the Fisher matrix of the loss function w.r.t preactivtaions from the last layer.
-    # Therefore, J should be in the shape of (dim of last layer * num of parameters), and Fr should be in the shape of
-    # (dim of last layer * dim of last layer). We will again factorize Fr as B * B.T, where B is any matrix that satisfies
-    # Fr = B * B.T. So now the scalar we want to compute: proposal.T * F * proposal, can be written as :
-    #                                   proposal.T * J.T * B * B.T * J * proposal
-    # We can compute this by first computing half = B * B.T * J * proposal, then compute half.T * half.
-    # Note that all "*"  here are dot product, not element-wise product.
+    """
+    See section 6.4 and 7 of the paper
+    For now, we only compute alpha from section 6.4, and will implement the computation of both alpha and mu from section 7 later.
+    To computer the hyperparameters, we first need proposal.T * F * proposal, where F is the exact Fisher given by
+    the data from the current minibatch. To reduce computational costs, we factorize F as J.T * Fr * J, where J is
+    the Jacobian of preactivations from the last layer w.r.t all the parameters (i.e. weights and biases), and Fr
+    is the Fisher matrix of the loss function w.r.t preactivtaions from the last layer.
+    Therefore, J should be in the shape of (dim of last layer * num of parameters), and Fr should be in the shape of
+    (dim of last layer * dim of last layer). We will again factorize Fr as B * B.T, where B is any matrix that satisfies
+    Fr = B * B.T. So now the scalar we want to compute: proposal.T * F * proposal, can be written as :
+                                      proposal.T * J.T * B * B.T * J * proposal
+    We can compute this by first computing half = B * B.T * J * proposal, then compute half.T * half.
+    Note that all "*"  here are dot product, not element-wise product.
 
-    # For now,  we will implement Fr for the Categorical Logits Negative Log Prob Loss, and will implement other kinds
-    # of loss functions later
+    For now,  we will implement Fr for the Categorical Logits Negative Log Prob Loss, and will implement other kinds
+    of loss functions later
 
-    # For Categorical Logits Negative Log Prob Loss, the Fr with respect to the inputs(logits) is given by:
-    # Fr = diag(p) - p * p.T
-    # where p  = softmax(logits), and Fr can be factorized as Fr = B * B.T, where B = diag(q) - p * q.T
-    # where q is the entry-wise square root of p. This factorization is based on information from the tensorflow
-    # implementation of CategoricalLogitsNegativeLogProbLoss in kfac/python/ops/loss_functions.py
-
+    For Categorical Logits Negative Log Prob Loss, the Fr with respect to the inputs(logits) is given by:
+    Fr = diag(p) - p * p.T
+    where p  = softmax(logits), and Fr can be factorized as Fr = B * B.T, where B = diag(q) - p * q.T
+    where q is the entry-wise square root of p. This factorization is based on information from the tensorflow
+    implementation of CategoricalLogitsNegativeLogProbLoss in kfac/python/ops/loss_functions.py
+    """
     if ratio_vFv != 1:
         # sample a fraction of outputs accroding to the ratio.
         minibatch_size = int(ratio_vFv * outputs.shape[0])
@@ -195,15 +189,9 @@ def compute_quadmodel_hyperparameters(proposal, flattened_gradient, outputs, par
 
     p = soft_max(outputs).T # last layer size * minibatch_size
     q = np.sqrt(p)
-    # now compute jacobian-proposal product
+    # now compute jacobian-proposal product, This function slow, will improve it.
     j_p = product_jacobian_proposal(proposal, params, inputs_minibatch) # last layer size * minibatch_size
-
-    # not working yet
-    # half =  (q * j_p  - q.dot(p.T).dot(j_p))/minibatch_size # last layer size * minibatch_size
-    # pFp = np.dot(half.T,half) # minbatch_size * minibatch_size, symmetric
-    # pFp = np.sum(pFp)
-
-    # using the following as a replacement, but how to improve this ??
+    
     pFp = 0
     for i in range(minibatch_size):
         half = q[:, i] * j_p[:, i] - np.outer(q[:, i], p[:, i]).dot(j_p[:, i])
@@ -220,8 +208,9 @@ def compute_quadmodel_hyperparameters(proposal, flattened_gradient, outputs, par
     return update, quad_model_change
 
 
-def KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_inputs, train_targets, testing_inputs, testing_targets, train_with_increasing_batch_size, L2_reg = 1):
-
+def KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_inputs, train_targets, testing_inputs, testing_targets, train_with_increasing_batch_size, L2_reg = 1,callback = None):
+   """The K-FAC optimizer for a MLP"""
+    
     train_size = train_inputs.shape[0]
     numlayers = len(layer_sizes) - 1
 
@@ -281,11 +270,12 @@ def KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_input
             minibatch_size = next_batch_size(minibatch_startsize,train_size, b, iter)
         else:
             minibatch_size = 256
+        if callback: callback(iter, params, minibatch_size) # print results
         sampleminibatch_size = int(ratio_sample * minibatch_size)
         idx = np.random.randint(train_size, size= minibatch_size)
         inputs_minibatch = train_inputs[idx,:]  # shape :(minibatch_size, dim of input)
         targets_minibatch = train_targets[idx,:] # Now we have the minibatch used for this iteration
-        # Now we need to perform one forward and two backward pass to estimate the gradient. Please see sections 3 to 5
+        # Then we need to perform one forward and two backward pass to estimate the gradient. Please see sections 3 to 5
         # A_hom, and G.  It also returns outputs, which are preactivations of the last layer.This will be needed later in calculating hyperparams from the quadratic model.
         flattened_gradient, A_hom_inc, G_inc , outputs, log_likelihood= one_forwardpass_and_two_backward_pass(minibatch_size,
                                                                                                               sampleminibatch_size,inputs_minibatch, targets_minibatch,
@@ -355,48 +345,4 @@ def KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_input
             elif rho > 0.75:
                 recent_lambda = max(recent_lambda * (lambda_drop**T1), lambda_min)
 
-        if iter % 100 == 0: # counting time and printing statistics
-            if iter == 0:
-                time_elapsed = 0
-            else:
-                end = time.time()
-                time_elapsed = end - start
-            start = time.time()
-            train_acc = accuracy(params, train_inputs, train_targets)
-            test_acc = accuracy(params, testing_inputs, testing_targets)
-            print("{:15}|{:20}|{:20}|{:20}|{:20}".format(iter, minibatch_size, train_acc, test_acc, time_elapsed))
     return params
-
-def accuracy(params, inputs, targets):
-    target_class    = np.argmax(targets, axis=1)
-    predicted_class = np.argmax(neural_net_predict(params, inputs), axis=1)
-    return np.mean(predicted_class == target_class)
-
-if __name__ == '__main__':
-
-    print('-----------------------------------------')
-
-    # Model parameters
-    layer_sizes = [784, 200, 100, 10]
-    layer_types = ['tanh', 'tanh', 'softmax']
-    L2_reg = 1.0
-    param_scale = 0.1
-    init_params = init_random_params(param_scale, layer_sizes)
-    num_iter = 1000
-    print("Loading training data...")
-    N, train_images, train_labels, test_images, test_labels = load_mnist()
-    train_inputs = train_images
-    train_targets = train_labels
-    testing_inputs = test_images
-    testing_targets = test_labels
-    train_with_increasing_batch_size = True # if False, then will train with fixed batch size of 256.
-
-    print('Results from KFAC')
-    print( "   Iterations  |    Minibatch size  |    Train accuracy  |    Test accuracy   |    Time elapsed during this 100 iterations   ")
-    import time
-    # The initial lambda value.  Will be problem dependent and should be adjusted based on behavior of first few dozen iterations.
-    initlambda = 0  #  1 is more appropriate for classification nets. You may want to try initlambda = 150 for an autoencoder.
-
-    optimized_params = KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_inputs, train_targets, testing_inputs, testing_targets, train_with_increasing_batch_size, L2_reg = 1)
-
-
