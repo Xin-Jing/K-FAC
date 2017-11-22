@@ -1,4 +1,4 @@
-"""A multi-layer perceptron for classification of MNIST handwritten digits."""
+"""A multi-layer perceptron for classification of MNIST handwritten digits with adam optimizer."""
 from __future__ import absolute_import, division
 from __future__ import print_function
 import autograd.numpy as np
@@ -170,14 +170,19 @@ if __name__ == '__main__':
     v = np.zeros(len(flattened_params))
     t = 0
     print('Results from adam optimizer with the same back-propagation as KFAC')
-    print("   Iterations  |    Minibatch size  |    Train accuracy  |    Test accuracy   |    Time elapsed during this 100 iterations   ")
+    print("   Iterations  |    Minibatch size  |    Train accuracy  |    Test accuracy ")
     for i in range(num_epochs):
         for j in range(num_batches):
+            num_iter = i * num_batches + j
             t += 1
-            #train_inputs , train_targets = batch_data(j)
+            # train_inputs , train_targets = batch_data(j)
             num_iter = i * num_batches + j
             minibatch_size = next_batch_size(startsize, train_size, b, num_iter)
-            train_inputs, train_targets = batch_data_inc(minibatch_size, train_images, train_labels )
+            train_inputs, train_targets = batch_data_inc(minibatch_size, train_images, train_labels)
+            if num_iter % 100 == 0:
+                train_acc = accuracy(un_flatten(flattened_params), train_images, train_labels)
+                test_acc = accuracy(un_flatten(flattened_params), test_images, test_labels)
+                print("{:15}|{:20}|{:20}|{:20}".format(num_iter, minibatch_size, train_acc, test_acc))
 
             batch_grad = flattened_grad(flattened_params, train_inputs, train_targets , numlayers, layer_sizes, layer_types) # here j represents the jth batch, batch_grad is also flattened
             batch_grad = batch_grad/batch_size
@@ -187,14 +192,4 @@ if __name__ == '__main__':
             v2 = v / (1 - beta2**t)
             flattened_params = flattened_params - step_size * m2 / (np.sqrt(v2) + epsilon)
 
-            if num_iter % 100 == 0:
-                if num_iter == 0:
-                    time_elapsed = 0
-                else:
-                    end = time.time()
-                    time_elapsed = end - start
-                start = time.time()
-                train_acc = accuracy(un_flatten(flattened_params), train_images, train_labels)
-                test_acc = accuracy(un_flatten(flattened_params), test_images, test_labels)
-                print("{:15}|{:20}|{:20}|{:20}|{:15}".format(num_iter, minibatch_size, train_acc, test_acc, time_elapsed))
     trained_params = un_flatten(flattened_params)
