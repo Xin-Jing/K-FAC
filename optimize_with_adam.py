@@ -11,7 +11,7 @@ from autograd.misc.optimizers import adam
 from data import load_mnist
 
 
-def init_random_params(scale, layer_sizes, rs=npr.RandomState(15)):
+def init_random_params(scale, layer_sizes, rs=npr.RandomState(0)):
     """Build a list of (weights, biases) tuples,
        one for each layer in the net."""
     return [(scale * rs.randn(m, n),   # weight matrix
