@@ -8,7 +8,7 @@ from autograd import grad
 from autograd.differential_operators import make_jvp_reversemode
 from autograd.misc.flatten import flatten
 from data import load_mnist
-# Data need to be of shape: num_of_samples * dimension.
+# Data need to be of shape: num_of_samples * dimension
 
 def neural_net_predict(params, inputs):
     """A deep neural network for classification.
@@ -251,7 +251,7 @@ def KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_input
     params = init_params
     flattened_params, unflatten = flatten(params)
 
-    A_hom = {} # a dictionary to store statistics a_hom_i*a_hom_j.T. See sections 3 to 5.
+    A_hom = {} # a dictionary to store statistics a_hom_i*a_hom_j.T. See section 3 to section 5.
     G = {} # a dictionary to store statistics g_i*g_j.T
     A_hom_damp = {}  #  dictionaries to store damped statistics
     G_damp = {}
