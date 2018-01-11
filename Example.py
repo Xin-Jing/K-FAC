@@ -23,7 +23,7 @@ def init_random_params(scale, layer_sizes, rs=npr.RandomState(0)):
              scale * rs.randn(n))  # bias vector
             for m, n in zip(layer_sizes[:-1], layer_sizes[1:])]
 
-# the following three functions are used for printing the results as the training goes, not needed for the optimizer
+# the following three functions are not needed for optimization, but only used for printing the results as the training goes.
 def neural_net_predict(params, inputs):
     """A deep neural network for classification.
        params is a list of (weights, bias) tuples.
