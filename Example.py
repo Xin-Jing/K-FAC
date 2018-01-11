@@ -78,7 +78,7 @@ train_with_increasing_batch_size = True # if False, then will train with fixed b
 print('Results from KFAC')
 print( "   Iterations  |    Minibatch size  |    Train accuracy  |    Test accuracy    ")
 
-# The initial lambda value is the only parameter you need to adjust for now. This adjustment will be automated in the future.
+# For now, the initial lambda value is the only parameter you need to adjust. This adjustment will be automated in the future.
 # The choice of initial lambda is problem-dependent and can be adjusted based on behavior of the first few iterations.
 initlambda = 1   #  1 is more appropriate for classification nets. For an autoencoder, you may want to try initlambda = 150
 
