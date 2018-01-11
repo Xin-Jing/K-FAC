@@ -1,6 +1,6 @@
 # K-FAC
 
-The Implementation of K-FAC. Please see the excellent paper for details: https://arxiv.org/pdf/1503.05671.pdf
+The Implementation of K-FAC, based on the original paper: https://arxiv.org/pdf/1503.05671.pdf
 
 K-FAC is short for "Kronecker-factored Approximate Curvature". It optimizes neural networks using block-diagonal approximation to the Fisher information matrix required in the Natural Gradient algorithm. It converges with far fewer iterations than other algorithms such as SGD and adam optimizer. The code for the optimizer is [here](K_FAC.py).
 
