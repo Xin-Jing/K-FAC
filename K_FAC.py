@@ -215,7 +215,7 @@ def KFAC(num_iter, init_params, initlambda, layer_sizes,layer_types, train_input
     train_size = train_inputs.shape[0]
     numlayers = len(layer_sizes) - 1
 
-    # parameters for lambda, see initSection 6.5
+    # parameters for lambda, see Section 6.5
     recent_lambda = initlambda
     # initlambda = 1  a value usually more appropriate for classification nets
     lambda_drop = 19 / 20
