@@ -73,6 +73,7 @@ def softmax_sampling(predictions):
                                    np.tile(s, (predictions.shape[1], 1)).T <= c),
                                   axis=1),axis=1)
 
+# the following code is to be shortened
 def one_forwardpass_and_two_backward_pass(minibatch_size,sampleminibatch_size,inputs_minibatch, targets_minibatch, params, numlayers, layer_sizes, layer_types, weight_cost, flattened_params, L2_reg):
     """ back_prop that keeps track of ai's and gi's and returns flattened gradient,  A_hom_inc, G_inc, last layer preactivations and  log likelihood"""
     
