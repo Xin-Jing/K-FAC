@@ -76,6 +76,7 @@ def samplesoftmax(predictions):
                                    np.tile(s, (predictions.shape[1], 1)).T <= c),
                                   axis=1),axis=1)
 
+# This will be replaced by the autograd function.
 def one_forwardpass_and_one_backward_pass(params,inputs_minibatch, targets_minibatch, numlayers, layer_sizes, layer_types):
     # back_prop that keeps track of ai's and gi's and gives the gradient
     # for now, we don't break the minibatch into chunks
