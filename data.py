@@ -4,8 +4,8 @@ from future.standard_library import install_aliases
 install_aliases()
 
 import numpy as np
-import os
 import gzip
+import os
 import struct
 import array
 
