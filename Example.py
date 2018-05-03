@@ -11,7 +11,7 @@ from data import load_mnist
 
 # This K-FAC implementation is easy to use, you don't need to construct the neural network on your own. Instead, just
 # specify the activation types and sizes of layers, and the optimizer will construct the neural network inside.
-# (Unlike other optimizers, K-FAC explores the structure of the neural network (i.e. layer types and sizes)
+# (Unlike other optimizers, K-FAC explores the structure of the neural network (i.e. layer types and sizes, etc.))
 
 
 # This implementation supports initial weights in the following shape:[([W1],[b1]),([W2],[b2])...([Wl],[bl])],
